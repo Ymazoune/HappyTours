@@ -34,8 +34,8 @@ const BookingForm = ({ tour }) => {
     try {
       const bookingData = {
         tourId: tour._id,
-        startDate: formData.date,
-        numberOfPeople: parseInt(formData.participants),
+        date: formData.date,
+        participants: parseInt(formData.participants),
         totalPrice: calculateTotal(),
         contactInfo: {
           name: formData.name,
@@ -44,13 +44,21 @@ const BookingForm = ({ tour }) => {
         }
       };
 
+      if (!bookingData.date) {
+        throw new Error('Please select a date');
+      }
+
+      if (!bookingData.participants || bookingData.participants < 1) {
+        throw new Error('Number of participants must be at least 1');
+      }
+
       console.log('Sending booking data:', bookingData);
       const response = await createBooking(bookingData);
       console.log('Booking created:', response);
       navigate('/my-bookings', { state: { message: 'Booking created successfully!' } });
     } catch (err) {
       console.error('Booking error:', err);
-      setError(err.response?.data?.message || 'Failed to create booking. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Failed to create booking. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -1,160 +1,276 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { getTours } from '../services/api';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getTours } from '../services/tourService';
 
 const Tours = () => {
+  const navigate = useNavigate();
   const [tours, setTours] = useState([]);
+  const [filteredTours, setFilteredTours] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [filters, setFilters] = useState({
-    location: searchParams.get('location') || '',
-    priceRange: 'all',
-    duration: 'all'
-  });
+  const [error, setError] = useState(null);
+  const [searchParams] = useSearchParams();
+  const locationQuery = searchParams.get('location');
+
+  // Filter states
+  const [search, setSearch] = useState('');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [priceError, setPriceError] = useState('');
+  const [duration, setDuration] = useState('all');
+  const [featured, setFeatured] = useState(false);
+  const [sortBy, setSortBy] = useState('default');
+
+  // Add this function to handle price input
+  const handlePriceChange = (field, value) => {
+    // Clear any previous error
+    setPriceError('');
+    
+    // Allow empty value
+    if (value === '') {
+      setPriceRange(prev => ({ ...prev, [field]: '' }));
+      return;
+    }
+
+    // Check if input is a valid number
+    if (!/^\d*$/.test(value)) {
+      setPriceError('Please enter numbers only');
+      return;
+    }
+
+    // Update the price range
+    setPriceRange(prev => ({ ...prev, [field]: value }));
+  };
 
   useEffect(() => {
     const fetchTours = async () => {
       try {
+        console.log('Fetching tours...');
         const data = await getTours();
-        setTours(data);
+        
+        // Filter tours if location query exists
+        if (locationQuery) {
+          const filteredTours = data.filter(tour => 
+            tour.location.toLowerCase().includes(locationQuery.toLowerCase())
+          );
+          setTours(filteredTours);
+        } else {
+          setTours(data);
+        }
+        setFilteredTours(data);
+        setLoading(false);
       } catch (err) {
-        setError('Failed to load tours');
-      } finally {
+        console.error('Error in fetchTours:', err);
+        setError('Failed to fetch tours. Please try again later.');
         setLoading(false);
       }
     };
 
     fetchTours();
-  }, []);
+  }, [locationQuery]);
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  // Apply filters and sorting
+  useEffect(() => {
+    let result = [...tours];
 
-  const filteredTours = tours.filter(tour => {
-    const matchesLocation = tour.location.toLowerCase().includes(filters.location.toLowerCase());
-    const matchesPrice = filters.priceRange === 'all' || 
-      (filters.priceRange === 'budget' && tour.price < 1000) ||
-      (filters.priceRange === 'mid' && tour.price >= 1000 && tour.price < 2000) ||
-      (filters.priceRange === 'luxury' && tour.price >= 2000);
-    const matchesDuration = filters.duration === 'all' ||
-      (filters.duration === 'short' && tour.duration <= 3) ||
-      (filters.duration === 'medium' && tour.duration > 3 && tour.duration <= 7) ||
-      (filters.duration === 'long' && tour.duration > 7);
+    // Apply search filter
+    if (search) {
+      result = result.filter(tour => 
+        tour.name.toLowerCase().includes(search.toLowerCase()) ||
+        tour.location.toLowerCase().includes(search.toLowerCase())
+      );
+    }
 
-    return matchesLocation && matchesPrice && matchesDuration;
-  });
+    // Apply price range filter
+    if (priceRange.min !== '' && priceRange.max !== '') {
+      const min = parseInt(priceRange.min);
+      const max = parseInt(priceRange.max);
+      
+      if (!isNaN(min) && !isNaN(max)) {
+        result = result.filter(tour => 
+          tour.price >= min && tour.price <= max
+        );
+      }
+    }
+
+    // Apply duration filter
+    if (duration !== 'all') {
+      result = result.filter(tour => tour.duration === parseInt(duration));
+    }
+
+    // Apply featured filter
+    if (featured) {
+      result = result.filter(tour => tour.featured);
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'price_asc':
+        result.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_desc':
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case 'rating':
+        result.sort((a, b) => b.rating - a.rating);
+        break;
+      default:
+        // Default sorting (newest first)
+        result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    setFilteredTours(result);
+  }, [tours, search, priceRange, duration, featured, sortBy]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-2xl text-gray-600">Loading tours...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-2xl text-red-600">{error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Explore Our Tours</h1>
-          <p className="text-xl text-gray-600">Find your perfect adventure from our curated collection of tours</p>
-        </div>
+    <div className="space-y-8">
+      <h1 className="text-3xl font-bold text-center">
+        {locationQuery ? `Tours in ${locationQuery}` : 'All Tours'}
+      </h1>
+      {locationQuery && tours.length === 0 && (
+        <p className="text-center text-gray-600">No tours found for this location.</p>
+      )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Location
-              </label>
+      {/* Filters Section */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Search */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <input
+              type="text"
+              placeholder="Search tours..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+            />
+          </div>
+
+          {/* Price Range */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+            <div className="flex items-center space-x-2">
               <input
                 type="text"
-                name="location"
-                value={filters.location}
-                onChange={handleFilterChange}
-                placeholder="Search by location..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+                placeholder="Min"
+                value={priceRange.min}
+                onChange={(e) => handlePriceChange('min', e.target.value)}
+                className="w-1/2 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              />
+              <span>-</span>
+              <input
+                type="text"
+                placeholder="Max"
+                value={priceRange.max}
+                onChange={(e) => handlePriceChange('max', e.target.value)}
+                className="w-1/2 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price Range
-              </label>
-              <select
-                name="priceRange"
-                value={filters.priceRange}
-                onChange={handleFilterChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
-              >
-                <option value="all">All Prices</option>
-                <option value="budget">Budget ($0 - $999)</option>
-                <option value="mid">Mid-Range ($1000 - $1999)</option>
-                <option value="luxury">Luxury ($2000+)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Duration
-              </label>
-              <select
-                name="duration"
-                value={filters.duration}
-                onChange={handleFilterChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
-              >
-                <option value="all">All Durations</option>
-                <option value="short">Short (1-3 days)</option>
-                <option value="medium">Medium (4-7 days)</option>
-                <option value="long">Long (8+ days)</option>
-              </select>
-            </div>
+            {priceError && (
+              <p className="mt-1 text-sm text-red-600">{priceError}</p>
+            )}
+          </div>
+
+          {/* Duration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+            <select
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+            >
+              <option value="all">All Durations</option>
+              <option value="1">1 Day</option>
+              <option value="2">2 Days</option>
+              <option value="3">3 Days</option>
+              <option value="4">4 Days</option>
+              <option value="5">5 Days</option>
+              <option value="6">6 Days</option>
+              <option value="7">7 Days</option>
+            </select>
+          </div>
+
+          {/* Sort By */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+            >
+              <option value="default">Newest First</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="rating">Highest Rated</option>
+            </select>
           </div>
         </div>
 
-        {/* Tours Grid */}
-        {loading ? (
-          <div className="text-center py-12">Loading...</div>
-        ) : error ? (
-          <div className="text-center text-red-600 py-12">{error}</div>
-        ) : filteredTours.length === 0 ? (
-          <div className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2">No tours found</h3>
-            <p className="text-gray-600">Try adjusting your filters to find more tours.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredTours.map((tour) => (
-              <div key={tour._id} className="bg-white rounded-lg shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300">
-                <img
-                  src={tour.image}
-                  alt={tour.name}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-xl font-semibold">{tour.name}</h3>
-                    <span className="bg-black text-white px-3 py-1 rounded-full text-sm">
-                      {tour.duration} days
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-4 line-clamp-2">{tour.description}</p>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="text-2xl font-bold">${tour.price}</span>
-                      <span className="text-gray-600 text-sm"> /person</span>
-                    </div>
-                    <Link
-                      to={`/tours/${tour._id}`}
-                      className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors"
-                    >
-                      View Details
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Featured Filter */}
+        <div className="mt-4">
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={featured}
+              onChange={(e) => setFeatured(e.target.checked)}
+              className="rounded border-gray-300 text-black focus:ring-black"
+            />
+            <span className="text-sm font-medium text-gray-700">Show featured tours only</span>
+          </label>
+        </div>
       </div>
+
+      {/* Tours Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {filteredTours.map((tour) => (
+          <div
+            key={tour._id}
+            onClick={() => navigate(`/tours/${tour._id}`)}
+            className="bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow duration-300"
+          >
+            <div className="relative h-48">
+              <img
+                src={tour.image}
+                alt={tour.name}
+                className="w-full h-full object-cover"
+              />
+              {tour.featured && (
+                <span className="absolute top-2 right-2 bg-black text-white px-2 py-1 text-xs rounded">
+                  Featured
+                </span>
+              )}
+            </div>
+            <div className="p-4">
+              <h3 className="text-lg font-semibold mb-2">{tour.name}</h3>
+              <p className="text-gray-600 text-sm mb-2">{tour.location}</p>
+              <div className="flex justify-between items-center">
+                <span className="text-black font-semibold">${tour.price}</span>
+                <span className="text-gray-600 text-sm">{tour.duration} days</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredTours.length === 0 && (
+        <div className="text-center text-gray-600 py-8">
+          No tours found matching your criteria.
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const tourSchema = new mongoose.Schema({
   name: {
@@ -51,6 +51,23 @@ const tourSchema = new mongoose.Schema({
   numReviews: {
     type: Number,
     default: 0
+  },
+  difficulty: {
+    type: String,
+    enum: ['easy', 'medium', 'difficult'],
+    default: 'medium'
+  },
+  category: {
+    type: String,
+    enum: ['adventure', 'cultural', 'beach', 'mountain', 'city'],
+    default: 'adventure'
+  },
+  startDates: [{
+    type: Date
+  }],
+  available: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true,
@@ -68,4 +85,4 @@ tourSchema.virtual('bookings', {
 // Index for search
 tourSchema.index({ name: 'text', location: 'text' });
 
-module.exports = mongoose.model('Tour', tourSchema); 
+export default mongoose.model('Tour', tourSchema); 

@@ -1,8 +1,15 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const session = require('express-session');
-require('dotenv').config();
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import session from 'express-session';
+import MongoStore from 'connect-mongo';
+import dotenv from 'dotenv';
+import tourRoutes from './routes/tours.js';
+import bookingRoutes from './routes/bookings.js';
+import authRoutes from './routes/authRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+
+dotenv.config();
 
 // Debug: Log environment variables
 console.log('MongoDB URI:', process.env.MONGODB_URI);
@@ -23,20 +30,23 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+    ttl: 24 * 60 * 60 // 1 day
+  }),
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax'
   }
 }));
 
 // Routes
-const tourRoutes = require('./routes/tourRoutes');
-const bookingRoutes = require('./routes/bookingRoutes');
-const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
 app.use('/api/tours', tourRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

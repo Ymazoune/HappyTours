@@ -1,17 +1,19 @@
-const User = require('../models/User');
+import User from '../models/User.js';
 
-exports.protect = async (req, res, next) => {
+export const protect = async (req, res, next) => {
   try {
+    // Check if user is in session
     if (!req.session.user) {
-      return res.status(401).json({ message: 'Not authorized, please log in' });
+      return res.status(401).json({ message: 'Not authorized, no session' });
     }
 
-    // Get user from session
-    const user = await User.findById(req.session.user._id).select('-password');
+    // Get user from database
+    const user = await User.findById(req.session.user.id).select('-password');
     if (!user) {
       return res.status(401).json({ message: 'Not authorized, user not found' });
     }
 
+    // Attach user to request
     req.user = user;
     next();
   } catch (error) {
@@ -19,7 +21,7 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-const authorize = (...roles) => {
+export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ 
@@ -28,6 +30,4 @@ const authorize = (...roles) => {
     }
     next();
   };
-};
-
-module.exports = { protect, authorize }; 
+}; 

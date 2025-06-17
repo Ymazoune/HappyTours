@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
+import { body, validationResult } from 'express-validator';
+import Tour from '../models/Tour.js';
+import { protect, authorize } from '../middleware/auth.js';
+
 const router = express.Router();
-const { body, validationResult } = require('express-validator');
-const Tour = require('../models/Tour');
-const { protect, authorize } = require('../middleware/auth');
 
 // Get all tours with filtering and sorting
 router.get('/', async (req, res) => {
@@ -126,4 +127,4 @@ router.delete('/:id', [protect, authorize('admin')], async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router; 

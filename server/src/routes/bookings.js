@@ -1,9 +1,10 @@
-const express = require('express');
+import express from 'express';
+import { body, validationResult } from 'express-validator';
+import Booking from '../models/Booking.js';
+import Tour from '../models/Tour.js';
+import { protect } from '../middleware/auth.js';
+
 const router = express.Router();
-const { body, validationResult } = require('express-validator');
-const Booking = require('../models/Booking');
-const Tour = require('../models/Tour');
-const { protect } = require('../middleware/auth');
 
 // Get all bookings for logged-in user
 router.get('/', protect, async (req, res) => {
@@ -21,8 +22,11 @@ router.get('/', protect, async (req, res) => {
 router.post('/', [
   protect,
   body('tourId').notEmpty().withMessage('Tour ID is required'),
-  body('startDate').isISO8601().withMessage('Valid start date is required'),
-  body('numberOfPeople').isInt({ min: 1 }).withMessage('Number of people must be at least 1')
+  body('date').isISO8601().withMessage('Valid date is required'),
+  body('participants').isInt({ min: 1 }).withMessage('Number of participants must be at least 1'),
+  body('contactInfo.name').notEmpty().withMessage('Name is required'),
+  body('contactInfo.email').isEmail().withMessage('Valid email is required'),
+  body('contactInfo.phone').notEmpty().withMessage('Phone number is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -30,7 +34,7 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { tourId, startDate, numberOfPeople } = req.body;
+    const { tourId, date, participants, contactInfo } = req.body;
 
     // Check if tour exists
     const tour = await Tour.findById(tourId);
@@ -39,7 +43,7 @@ router.post('/', [
     }
 
     // Check if group size is within limits
-    if (numberOfPeople > tour.maxGroupSize) {
+    if (participants > tour.maxGroupSize) {
       return res.status(400).json({ 
         message: `Maximum group size for this tour is ${tour.maxGroupSize}`
       });
@@ -48,7 +52,7 @@ router.post('/', [
     // Check for existing booking
     const existingBooking = await Booking.findOne({
       tour: tourId,
-      startDate,
+      date,
       user: req.user._id
     });
 
@@ -60,13 +64,18 @@ router.post('/', [
     const booking = await Booking.create({
       user: req.user._id,
       tour: tourId,
-      startDate,
-      numberOfPeople,
-      totalPrice: tour.price * numberOfPeople
+      date,
+      participants,
+      totalPrice: tour.price * participants,
+      contactInfo
     });
+
+    // Populate tour details before sending response
+    await booking.populate('tour', 'name image location price duration');
 
     res.status(201).json(booking);
   } catch (error) {
+    console.error('Booking creation error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -84,7 +93,7 @@ router.delete('/:id', protect, async (req, res) => {
     }
 
     // Check if booking can be cancelled (e.g., not too close to start date)
-    const startDate = new Date(booking.startDate);
+    const startDate = new Date(booking.date);
     const now = new Date();
     const daysUntilStart = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
 
@@ -103,4 +112,4 @@ router.delete('/:id', protect, async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router; 

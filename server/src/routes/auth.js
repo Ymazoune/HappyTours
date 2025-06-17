@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
+import { body, validationResult } from 'express-validator';
+import User from '../models/User.js';
+import { protect } from '../middleware/auth.js';
+
 const router = express.Router();
-const { body, validationResult } = require('express-validator');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const { protect } = require('../middleware/auth');
 
 // Register user
 router.post('/register', [
@@ -32,17 +32,13 @@ router.post('/register', [
       password
     });
 
-    // Create token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '30d'
-    });
-
-    // Set cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-    });
+    // Set user in session
+    req.session.user = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
 
     res.status(201).json({
       _id: user._id,
@@ -80,17 +76,13 @@ router.post('/login', [
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Create token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '30d'
-    });
-
-    // Set cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-    });
+    // Set user in session
+    req.session.user = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
 
     res.json({
       _id: user._id,
@@ -105,11 +97,13 @@ router.post('/login', [
 
 // Logout user
 router.get('/logout', (req, res) => {
-  res.cookie('token', 'none', {
-    expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ message: 'Error logging out' });
+    }
+    res.clearCookie('connect.sid');
+    res.json({ message: 'User logged out successfully' });
   });
-  res.json({ message: 'User logged out successfully' });
 });
 
 // Get current user
@@ -117,4 +111,4 @@ router.get('/me', protect, async (req, res) => {
   res.json(req.user);
 });
 
-module.exports = router; 
+export default router; 
