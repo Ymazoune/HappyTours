@@ -5,7 +5,7 @@ function Home() {
     <div className="space-y-12">
       {/* Hero Section */}
       <section className="text-center py-20">
-        <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+        <h1 className="text-5xl font-bold mb-6 text-black">
           Discover Your Next Adventure
         </h1>
         <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">

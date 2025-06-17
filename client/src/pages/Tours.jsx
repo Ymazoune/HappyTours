@@ -138,7 +138,7 @@ const Tours = () => {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-center">
+      <h1 className="text-3xl font-bold text-black text-center">
         {locationQuery ? `Tours in ${locationQuery}` : 'All Tours'}
       </h1>
       {locationQuery && tours.length === 0 && (
@@ -255,7 +255,7 @@ const Tours = () => {
               )}
             </div>
             <div className="p-4">
-              <h3 className="text-lg font-semibold mb-2">{tour.name}</h3>
+              <h3 className="text-lg font-semibold text-black mb-2">{tour.name}</h3>
               <p className="text-gray-600 text-sm mb-2">{tour.location}</p>
               <div className="flex justify-between items-center">
                 <span className="text-black font-semibold">${tour.price}</span>

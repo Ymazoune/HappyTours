@@ -72,7 +72,7 @@ export default function TourDetails() {
             <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800 mb-2">{tour.name}</h2>
+                  <h2 className="text-2xl font-bold text-black mb-2">{tour.name}</h2>
                   <p className="text-gray-600">{tour.location}</p>
                 </div>
                 <div className="flex items-center">

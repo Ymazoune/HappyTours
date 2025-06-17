@@ -51,4 +51,6 @@ const bookingSchema = new mongoose.Schema({
 // Prevent duplicate bookings
 bookingSchema.index({ user: 1, tour: 1, startDate: 1 }, { unique: true });
 
-export default mongoose.model('Booking', bookingSchema); 
+const Booking = mongoose.model('Booking', bookingSchema);
+export { Booking };
+export default Booking; 
