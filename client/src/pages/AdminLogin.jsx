@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
 const AdminLogin = () => {
@@ -97,6 +97,13 @@ const AdminLogin = () => {
             </button>
           </div>
         </form>
+
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Not an admin?{' '}
+          <Link to="/login" className="font-medium text-primary hover:text-primary-dark">
+            User Login
+          </Link>
+        </p>
       </div>
     </div>
   );
